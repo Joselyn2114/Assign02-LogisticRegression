@@ -1,0 +1,10 @@
+
+Análisis y discusión (PyTorch)
+------------------------------
+• Modelo final: Logistic Regression (capa lineal) reentrenado en TRAIN+VAL con la configuración ganadora {'lr': 0.001, 'batch_size': 128, 'epochs': 50, 'name': 'Config 10: lr=0.001, batch=128, epochs=50'}.
+• Desempeño en TEST: Accuracy=0.725, Precision=0.760, Recall=0.704, F1=0.731, ROC AUC=0.805.
+• Matriz de confusión: usa la imagen 'confusion_matrix_pytorch.png' para discutir FP/FN según el objetivo del proyecto.
+• Umbral 0.5: si el costo de falsos negativos (perder BUENOS) es alto, considera bajar el umbral para ganar Recall.
+• Desbalance: si la clase 1 es minoritaria, podrías ponderar la pérdida o ajustar el umbral para mejorar sensibilidad.
+• Interpretabilidad: LR permite analizar la contribución de cada variable via coeficientes/odds ratios (opcional agregar tabla).
+• Trabajo futuro: calibración de probabilidades, curva Precision-Recall y comparación con otros modelos (árboles/ensembles).

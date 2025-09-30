@@ -1,0 +1,2 @@
+accuracy,precision,recall,f1,roc_auc,config
+0.7254901960784313,0.76,0.7037037037037037,0.7307692307692307,0.8046875000000001,"{""lr"": 0.001, ""batch_size"": 128, ""epochs"": 50, ""name"": ""Config 10: lr=0.001, batch=128, epochs=50""}"
