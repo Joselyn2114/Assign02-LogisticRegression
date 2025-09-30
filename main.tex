@@ -1,0 +1,193 @@
+% !TeX program = pdflatex
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+% ---- Paquetes ----
+\usepackage[spanish]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath, amssymb}
+\usepackage{booktabs}
+\usepackage{siunitx}
+\usepackage{graphicx}
+\usepackage{array}
+\usepackage{hyperref}
+\usepackage{multirow}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{float}
+\sisetup{detect-weight=true,detect-family=true}
+
+% Rutas comunes para figuras
+\graphicspath{{figs/}{figures/}{images/}{img/}{./}}
+
+% --- Compactación de floats/captions ---
+\captionsetup{font=footnotesize}
+\setlength{\textfloatsep}{6pt plus 1pt minus 2pt}
+\setlength{\floatsep}{6pt plus 1pt minus 2pt}
+\setlength{\intextsep}{6pt plus 1pt minus 2pt}
+\setlength{\abovecaptionskip}{4pt}
+\setlength{\belowcaptionskip}{0pt}
+
+% --- Política de colocación de floats ---
+\renewcommand{\topfraction}{0.9}
+\renewcommand{\bottomfraction}{0.8}
+\renewcommand{\textfraction}{0.07}
+\renewcommand{\floatpagefraction}{0.8}
+\renewcommand{\dbltopfraction}{0.9}
+\renewcommand{\dblfloatpagefraction}{0.8}
+\setcounter{topnumber}{5}
+\setcounter{bottomnumber}{5}
+\setcounter{totalnumber}{10}
+
+% --- Utilidades de placeholders de figuras ---
+\newcommand{\placeholderbox}[2][5cm]{%
+  \fbox{\begin{minipage}[c][#1][c]{0.9\linewidth}\centering \textbf{Placeholder:} #2\end{minipage}}}
+
+% label, caption, filename
+\newcommand{\placefigure}[3]{%
+\begin{figure}[!t]\centering
+\IfFileExists{#3}{\includegraphics[width=\linewidth]{#3}}{\placeholderbox{#3}}
+\caption{#2}\label{#1}\end{figure}}
+
+% width, filename, subcaption, label
+\newcommand{\placesubfig}[4]{%
+\begin{subfigure}{#1}
+\centering
+\IfFileExists{#2}{\includegraphics[width=\linewidth]{#2}}{\placeholderbox{#2}}
+\caption{#3}\label{#4}
+\end{subfigure}}
+
+% ---- Título y autores ----
+\title{Implementación de Regresión Logística - PyTorch\vspace{-0.35em}}
+
+\author{\IEEEauthorblockN{Priscilla Jim\'enez Salgado, Fabi\'an Araya Ortega, David Acu\~na L\'opez}
+\IEEEauthorblockA{Curso de Inteligencia Artificial, Escuela de Ingenier\'ia en Computaci\'on, Tecnol\'ogico de Costa Rica (TEC)\\}}
+
+\begin{document}
+\raggedbottom
+\maketitle
+
+\begin{abstract}
+El siguiente trabajo presenta un análisis exploratorio de datos (EDA) y la preparación del dataset Wine Quality (Vinho Verde, vino tinto) para su uso en un modelo de regresión logística. Se examinan propiedades fisicoquímicas y sensoriales, identificando \emph{outliers} y correlaciones entre variables. A partir del análisis, se aplican transformaciones logarítmicas en variables con colas largas, se seleccionan seis predictores relevantes y se redefine la calidad como variable binaria balanceada. Asimismo, se realizan divisiones estratificadas de los datos en entrenamiento, validación y prueba, y se aplica un escalado estándar. Los hallazgos enfatizan la relevancia de \texttt{alcohol}, \texttt{volatile acidity}, \texttt{sulphates} y \texttt{citric acid} como determinantes de la calidad, estableciendo una base sólida para el modelado predictivo.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Regresión logística, Análisis exploratorio de datos (EDA), Wine Quality Dataset, Clasificación binaria, Preprocesamiento de datos, Outliers, Machine Learning
+\end{IEEEkeywords}
+
+\section{Introducci\'on}
+Se desarrolló un flujo reproducible para preparar el conjunto de datos previo al modelado: lectura y verificación de estructura, limpieza de duplicados, análisis exploratorio de datos (distribuciones, \emph{outliers}, correlaciones) y particionado estratificado con estandarización. El objetivo es dejar un dataset depurado, balanceado y escalado que permita una primera aproximación con regresión logística y sirva de línea base para futuros modelos.
+
+\section{Conjunto de Datos y Limpieza}
+El dataset contiene \num{1599} filas y \num{12} columnas: once variables fisicoquímicas continuas y la variable \texttt{quality} (entera). Todas las columnas tienen 1599 valores no nulos y tipos consistentes (\texttt{float64} para predictores y \texttt{int64} para \texttt{quality}). Se identificaron \textbf{240 duplicados exactos}; para evitar sesgo en estimación de parámetros se optó por \emph{eliminarlos} con \texttt{drop\_duplicates()}.
+
+\placefigure{fig:info}{Estructura del dataset: filas/columnas, tipos y no-nulos.}{preview_info.png}
+
+\subsection{Resumen estructural}
+\begin{table}[H]\centering\caption{Características generales del conjunto de datos}
+\label{tab:estructura}
+\begin{tabular}{lS}
+\toprule
+\textbf{Caracter\'istica} & {\textbf{Valor}}\\
+\midrule
+Filas & 1599\\
+Columnas & 12\\
+Tipos & \texttt{float} y \texttt{int} \\
+Faltantes & 0 en todas las columnas \\
+Duplicados exactos & 240\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{An\'alisis Exploratorio de Datos (EDA)}
+\subsection{Estad\'isticas y distribuciones}
+No hay faltantes. Las distribuciones muestran colas derechas y valores extremos plausibles en \texttt{residual sugar}, \texttt{chlorides}, \texttt{total sulfur dioxide} y \texttt{sulphates}. Se propone \textbf{transformación logarítmica} (o winsorización ligera) para estabilizar varianza sin perder información.
+
+\placefigure{fig:desc}{Tabla resumen con medias, desviaciones y percentiles por variable.}{describe_table.png}
+
+\placefigure{fig:box}{Boxplots de variables con colas largas y \emph{outliers} plausibles.}{eda_boxplots.png}
+
+\subsection{Correlaciones y coherencia fisicoqu\'imica}
+Se observan patrones esperados: relación negativa \texttt{alcohol}–\texttt{density} y positiva \texttt{residual sugar}–\texttt{density}. Con \texttt{quality} destaca señal positiva de \texttt{alcohol}, \texttt{sulphates} y \texttt{citric acid}; negativa de \texttt{volatile acidity}, \texttt{density} y \texttt{chlorides}. Para reducir colinealidad se prioriza \texttt{total sulfur dioxide} sobre \texttt{free sulfur dioxide}.
+
+\begin{figure}[!t]\centering
+\placesubfig{0.48\linewidth}{heatmap_pearson.png}{Matriz de correlaci\'on de Pearson}{sub:pear}
+\hfill
+\placesubfig{0.48\linewidth}{heatmap_spearman.png}{Matriz de correlaci\'on de Spearman}{sub:spear}
+\caption{Mapas de calor de correlaciones y posibles colinealidades.}
+\label{fig:heatmaps}
+\end{figure}
+
+\placefigure{fig:scatters}{Relaciones bivariadas clave entre variables fisicoquímicas y calidad.}{scatters_grid.png}
+
+\subsection{Candidatos a predictores}
+Del EDA surgen como candidatas principales \texttt{alcohol}, \texttt{volatile acidity}, \texttt{sulphates} y \texttt{citric acid}. Con transformaciones logarítmicas se incorporan además \texttt{total\_sulfur\_dioxide\_log} y \texttt{chlorides\_log} para un máximo de seis \emph{features} informativas y con menor colinealidad.
+
+\begin{table}[!t]\centering
+\caption{Selección final de \emph{features} y justificación}
+\label{tab:featimp}
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.1}
+\footnotesize
+\begin{tabular}{@{}>{\raggedright\ttfamily}p{0.36\linewidth} >{\raggedright\arraybackslash}p{0.58\linewidth}@{}}
+\toprule
+\textbf{Feature} & \textbf{Motivación breve}\\
+\midrule
+alcohol & Señal positiva con calidad; coherencia fisicoquímica con densidad.\\
+volatile\_acidity & Señal negativa (aroma avinado) consistente en EDA.\\
+sulphates\_log & Asociación positiva; la transformación log reduce cola derecha.\\
+citric\_acid & Mejora perfil sensorial; correlación moderada.\\
+total\_sulfur\_dioxide\_log & Sustituye a \texttt{free SO$_2$}; menor colinealidad.\\
+chlorides\_log & Salinidad alta penaliza calidad; el log mitiga outliers.\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Divisi\'on del Conjunto de Datos}
+\subsection{Variable objetivo binaria}
+Se define \texttt{quality\_label} = 0 (MALA) si \texttt{quality}\,$\leq$\,5 y 1 (BUENA) si \texttt{quality}\,$\geq$\,6. La distribución resultante es: clase 1 (BUENA) = 719, clase 0 (MALA) = 640. El balance es moderado.
+
+\placefigure{fig:classdist}{Distribuci\'on de clases en la variable objetivo binaria.}{class_distribution.png}
+
+\subsection{Transformaciones y estandarizaci\'on}
+Se crean columnas con sufijo \texttt{\_log} para variables con colas largas: \texttt{residual\_sugar\_log}, \texttt{chlorides\_log}, \texttt{total\_sulfur\_dioxide\_log}, \texttt{sulphates\_log}. Las \emph{features} finales (máximo seis) son:
+\begin{itemize}
+\item \texttt{alcohol}, \texttt{volatile\_acidity}, \texttt{sulphates\_log},
+\texttt{citric\_acid}, \texttt{total\_sulfur\_dioxide\_log}, \texttt{chlorides\_log}.
+\end{itemize}
+El escalado estándar se ajusta solo con \emph{Train} y se aplica a \emph{Val/Test} para evitar fuga de información.
+
+\subsection{Split estratificado}
+Se emplea \emph{stratified sampling} para mantener proporciones de clase en todos los subconjuntos. Tamaños: \textbf{Train: 951}, \textbf{Validation: 204}, \textbf{Test: 204}. Las proporciones por clase en cada subconjunto son $\approx$ 0.53 (BUENA) / 0.47 (MALA).
+
+\section{Bibliograf\'ia}
+
+\renewcommand{\refname}{}
+\vspace{-1em}%
+\begin{thebibliography}{00}
+
+\bibitem{CienciadedatosCorr}
+``Correlaci\'on lineal con python,'' \emph{Ciencia de Datos}. [En l\'inea]. Disponible en: \url{https://cienciadedatos.net/documentos/pystats05-correlacion-lineal-python}
+
+\bibitem{SklearnUG}
+scikit\mbox{-}learn developers, ``User Guide,'' 2007--. Disponible en: \url{https://scikit-learn.org/stable/user_guide.html}
+
+\bibitem{SeabornTut}
+Michael Waskom, ``Seaborn Tutorial,'' 2012--. Disponible en: \url{https://seaborn.pydata.org/tutorial.html}
+
+\bibitem{PandasUG}
+NumFOCUS, Inc., ``Pandas User Guide,'' 2024--. Disponible en: \url{https://pandas.pydata.org/pandas-docs/stable/user_guide/index.html}
+
+\bibitem{NumpyMatmul}
+NumPy Developers, ``numpy.matmul --- NumPy v2.2 Manual.'' Disponible en: \url{https://numpy.org/doc/stable/reference/generated/numpy.matmul.html}
+
+\bibitem{Kaggle_Dans}
+Dan Becker, ``Using Categorical Data with One Hot Encoding,'' \emph{Kaggle}, 2018. Disponible en: \url{https://www.kaggle.com/code/dansbecker/using-categorical-data-with-one-hot-encoding}
+
+\bibitem{CastrilloOutliers}
+Marta Castrillo, ``C\'omo identificar y tratar outliers con Python,'' \emph{Medium}, 2023. Disponible en: \url{https://medium.com/@martacasdelg/c%C3%B3mo-identificar-y-tratar-outliers-con-python-bf7dd530fc3}
+
+\end{thebibliography}
+
+\end{document}
